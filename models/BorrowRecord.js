@@ -207,7 +207,7 @@ borrowRecordSchema.pre('save', function(next) {
 borrowRecordSchema.index({ user: 1, status: 1 });
 borrowRecordSchema.index({ book: 1, status: 1 });
 borrowRecordSchema.index({ dueDate: 1, status: 1 });
-borrowRecordSchema.index({ transactionId: 1 });
+// borrowRecordSchema.index({ transactionId: 1 });
 
 // Static method to find overdue books
 borrowRecordSchema.statics.findOverdueBooks = async function() {
