@@ -76,27 +76,27 @@ async function connectToMongoDB() {
 
 // Disconnect from MongoDB
 async function disconnectFromMongoDB() {
-  try {
-    await mongoose.disconnect();
-    console.log('Disconnected from MongoDB');
-    return true;
-  } catch (err) {
-    console.error('Failed to disconnect from MongoDB:', err);
-    return false;
-  }
+  // try {
+  //   await mongoose.disconnect();
+  //   console.log('Disconnected from MongoDB');
+  //   return true;
+  // } catch (err) {
+  //   console.error('Failed to disconnect from MongoDB:', err);
+  //   return false;
+  // }
 }
 
 // Clear test data
 async function clearTestData() {
-  console.log('Clearing test data...');
-  try {
-    await User.deleteMany({ email: /test@/ });
-    await Book.deleteMany({ title: /Test Book/ });
-    await BorrowRecord.deleteMany({});
-    console.log('Test data cleared\n');
-  } catch (err) {
-    console.error('❌ Failed to clear test data:', err);
-  }
+  // console.log('Clearing test data...');
+  // try {
+  //   await User.deleteMany({ email: /test@/ });
+  //   await Book.deleteMany({ title: /Test Book/ });
+  //   await BorrowRecord.deleteMany({});
+  //   console.log('Test data cleared\n');
+  // } catch (err) {
+  //   console.error('❌ Failed to clear test data:', err);
+  // }
 }
 
 // ====== TEST FUNCTIONS ======
