@@ -8,16 +8,16 @@ const bookController = require('../controllers/bookController');
 router.get('/', bookController.getAllBooks);
 
 // GET a specific book by ID
-router.get('/id', bookController.getBookById);
+router.get('/:id', bookController.getBookById);  //http://localhost:3000/api/books/67d940e40656c6f9ceda843d
 
 // POST create a new book
 router.post('/', bookController.createBook);
 
 // PUT update an existing book
-router.put('/id', bookController.updateBook);
+router.put('/:id', bookController.updateBook);
 
 // DELETE a book
-router.delete('/id', bookController.deleteBook);
+router.delete('/:id', bookController.deleteBook);
 
 // GET search books by text
 router.get('/search', bookController.searchBooks);

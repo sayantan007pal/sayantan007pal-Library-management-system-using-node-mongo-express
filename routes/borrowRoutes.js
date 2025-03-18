@@ -20,15 +20,15 @@ router.get('/user/:userId', borrowController.getUserBorrowHistory);
 router.post('/', borrowController.createBorrowRecord);
 
 // PUT update an existing borrow record
-router.put('/id', borrowController.updateBorrowRecord);
+router.put('/:id', borrowController.updateBorrowRecord);
 
 // POST return a book
-router.post('/id/return', borrowController.returnBook);
+router.post('/:id/return', borrowController.returnBook);
 
 // POST renew a book
 router.post('/:d/renew', borrowController.renewBook);
 
 // POST pay fine for a book
-router.post('/id/pay-fine', borrowController.payFine);
+router.post('/:id/pay-fine', borrowController.payFine);
 
 module.exports = router;
