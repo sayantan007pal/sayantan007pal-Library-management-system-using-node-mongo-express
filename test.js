@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 const { MongoClient } = require('mongodb');
 
+// Import the BorrowRecord model
+const BorrowRecord = require('./models/BorrowRecord');
+
 // Configuration
 const config = {
   mongoURI: 'mongodb://localhost:27017/library_management',
@@ -16,8 +19,19 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   phone: { type: String, required: true },
   address: { type: String, required: true },
-  membershipStartDate: { type: Date, default: Date.now },
-  membershipEndDate: { type: Date, required: true },
+  membershipType: {
+    type: String,
+    required: true,
+    enum: ['regular', 'premium', 'student', 'staff'],
+    default: 'regular',
+  },
+  membershipDate: { type: Date, default: Date.now },
+  membershipExpiry: {
+    type: Date,
+    default: function () {
+      return new Date(this.membershipDate.getTime() + 365 * 24 * 60 * 60 * 1000);
+    }
+  },
   currentBorrowCount: { type: Number, default: 0 },
   maxBorrowLimit: { type: Number, default: 5 }
 });
@@ -36,33 +50,9 @@ const bookSchema = new mongoose.Schema({
   location: { type: String, required: true }
 });
 
-// Transaction Schema
-const transactionSchema = new mongoose.Schema({
-  transactionId: { type: String, required: true, unique: true },
-  userId: { type: String, required: true },
-  bookIsbn: { type: String, required: true },
-  borrowDate: { type: Date, default: Date.now },
-  dueDate: { type: Date, required: true },
-  returnDate: { type: Date, default: null },
-  status: { type: String, enum: ['borrowed', 'returned'], default: 'borrowed' }
-});
-
-// Fine Schema
-const fineSchema = new mongoose.Schema({
-  userId: { type: String, required: true },
-  transactionId: { type: String, required: true },
-  amount: { type: Number, required: true },
-  reason: { type: String, required: true },
-  date: { type: Date, default: Date.now },
-  status: { type: String, enum: ['paid', 'unpaid'], default: 'unpaid' },
-  paymentDate: { type: Date, default: null }
-});
-
 // Create models
 const User = mongoose.model('User', userSchema);
 const Book = mongoose.model('Book', bookSchema);
-const Transaction = mongoose.model('Transaction', transactionSchema);
-const Fine = mongoose.model('Fine', fineSchema);
 
 // ====== HELPER FUNCTIONS ======
 
@@ -102,8 +92,7 @@ async function clearTestData() {
   try {
     await User.deleteMany({ email: /test@/ });
     await Book.deleteMany({ title: /Test Book/ });
-    await Transaction.deleteMany({});
-    await Fine.deleteMany({});
+    await BorrowRecord.deleteMany({});
     console.log('Test data cleared\n');
   } catch (err) {
     console.error('❌ Failed to clear test data:', err);
@@ -123,8 +112,8 @@ async function testUserCreation() {
       email: 'test@example.com',
       phone: '1234567890',
       address: '123 Test Street, Test City',
-      membershipStartDate: new Date(),
-      membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
+      membershipDate: new Date(),
+      membershipExpiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
       currentBorrowCount: 0,
       maxBorrowLimit: 5
     });
@@ -134,11 +123,11 @@ async function testUserCreation() {
     
     // Check if membership is valid
     const today = new Date();
-    const membershipValid = today <= testUser.membershipEndDate;
+    const membershipValid = today <= testUser.membershipExpiry;
     console.log(`Membership valid: ${membershipValid}`);
     
     // Calculate days remaining in membership
-    const daysRemaining = Math.ceil((testUser.membershipEndDate - today) / (1000 * 60 * 60 * 24));
+    const daysRemaining = Math.ceil((testUser.membershipExpiry - today) / (1000 * 60 * 60 * 24));
     console.log(`Membership days remaining: ${daysRemaining}`);
     console.log(`Current borrow count: ${testUser.currentBorrowCount}\n`);
 
@@ -154,7 +143,7 @@ async function testBookCreation() {
   console.log('Testing book creation...');
   try {
     const testBook = new Book({
-      isbn: `TEST-${Math.floor(Math.random() * 10000)}`,
+      isbn: `TEST-${Math.floor(Math.random() * 10000)}-${Date.now().toString().slice(-4)}`,
       title: 'Test Book 1',
       author: 'Test Author',
       publisher: 'Test Publisher',
@@ -199,21 +188,22 @@ async function testBookBorrowing(user, book) {
       return null;
     }
 
-    // Create transaction
+    // Create due date (14 days from now)
     const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + 14); // 14 days from now
+    dueDate.setDate(dueDate.getDate() + 14);
 
-    const transaction = new Transaction({
-      transactionId: generateUniqueId('TXN'),
-      userId: user.userId,
-      bookIsbn: book.isbn,
-      borrowDate: new Date(),
+    // Create borrow record using the new schema
+    const borrowRecord = new BorrowRecord({
+      user: user._id,
+      book: book._id,
       dueDate: dueDate,
-      returnDate: null,
-      status: 'borrowed'
+      status: 'borrowed',
+      bookCondition: {
+        checkedOut: 'good'
+      }
     });
 
-    await transaction.save();
+    await borrowRecord.save();
 
     // Update book quantity
     book.availableQuantity -= 1;
@@ -223,33 +213,68 @@ async function testBookBorrowing(user, book) {
     user.currentBorrowCount += 1;
     await user.save();
 
-    console.log(`Transaction created: ${transaction.transactionId}`);
+    console.log(`Transaction created: ${borrowRecord.transactionId}`);
     console.log(`Book "${book.title}" borrowed by ${user.name}`);
     console.log(`Due date: ${dueDate.toDateString()}`);
     console.log(`Updated available quantity: ${book.availableQuantity}/${book.quantity}`);
-    console.log(`Updated user borrow count: ${user.currentBorrowCount}/${user.maxBorrowLimit}\n`);
+    console.log(`Updated user borrow count: ${user.currentBorrowCount}/${user.maxBorrowLimit}`);
+    console.log(`Days remaining: ${borrowRecord.daysRemaining}\n`);
 
-    return transaction;
+    return borrowRecord;
   } catch (err) {
     console.error('❌ Test failed:', err);
     return null;
   }
 }
 
-// Test book returning
-async function testBookReturning(transaction, user, book) {
-  console.log('Testing book returning...');
+// Test book renewal
+async function testBookRenewal(borrowRecord) {
+  console.log('Testing book renewal...');
   try {
-    // Check if transaction, user and book exist
-    if (!transaction || !user || !book) {
-      console.error('❌ Transaction, user, or book not available for return test');
+    if (!borrowRecord) {
+      console.error('❌ Borrow record not available for renewal test');
       return false;
     }
 
-    // Update transaction
-    transaction.returnDate = new Date();
-    transaction.status = 'returned';
-    await transaction.save();
+    // Get original due date for comparison
+    const originalDueDate = new Date(borrowRecord.dueDate);
+    console.log(`Original due date: ${originalDueDate.toDateString()}`);
+
+    // Use the model's renewBook method
+    const renewalSuccess = borrowRecord.renewBook();
+    
+    if (renewalSuccess) {
+      await borrowRecord.save();
+      console.log(`Book renewed successfully`);
+      console.log(`New due date: ${borrowRecord.dueDate.toDateString()}`);
+      console.log(`Renewal count: ${borrowRecord.renewalCount}`);
+      console.log(`Updated days remaining: ${borrowRecord.daysRemaining}\n`);
+      return true;
+    } else {
+      console.log('❌ Book renewal failed - may be overdue or already returned\n');
+      return false;
+    }
+  } catch (err) {
+    console.error('❌ Test failed:', err);
+    return false;
+  }
+}
+
+// Test book returning
+async function testBookReturning(borrowRecord, user, book) {
+  console.log('Testing book returning...');
+  try {
+    // Check if borrow record, user and book exist
+    if (!borrowRecord || !user || !book) {
+      console.error('❌ Borrow record, user, or book not available for return test');
+      return false;
+    }
+
+    // Update borrow record
+    borrowRecord.status = 'returned';
+    borrowRecord.returnDate = new Date();
+    borrowRecord.bookCondition.returned = 'good';
+    await borrowRecord.save();
 
     // Update book quantity
     book.availableQuantity += 1;
@@ -259,50 +284,42 @@ async function testBookReturning(transaction, user, book) {
     user.currentBorrowCount -= 1;
     await user.save();
 
-    console.log(`Book "${book.title}" returned by ${user.name}`);
-    console.log(`Return date: ${transaction.returnDate.toDateString()}`);
+    console.log(`Book returned by ${user.name}`);
+    console.log(`Return date: ${borrowRecord.returnDate.toDateString()}`);
+    console.log(`Borrow duration: ${borrowRecord.borrowDuration} days`);
     console.log(`Updated available quantity: ${book.availableQuantity}/${book.quantity}`);
-    console.log(`Updated user borrow count: ${user.currentBorrowCount}/${user.maxBorrowLimit}\n`);
+    console.log(`Updated user borrow count: ${user.currentBorrowCount}/${user.maxBorrowLimit}`);
 
-    // Check if book is returned late
-    const daysLate = Math.ceil((transaction.returnDate - transaction.dueDate) / (1000 * 60 * 60 * 24));
+    // Check if book is returned late and calculate fine
+    const isLate = new Date(borrowRecord.returnDate) > new Date(borrowRecord.dueDate);
     
-    if (daysLate > 0) {
-      console.log(`Book returned ${daysLate} days late. Testing fine generation...`);
+    if (isLate) {
+      // Use the model's calculateFine method
+      const fineAmount = borrowRecord.calculateFine();
+      console.log(`Book returned late. Fine calculated: $${fineAmount.toFixed(2)}`);
       
-      // Create fine (for testing, we'll simulate a fine even if it's not late)
-      const fineAmount = daysLate * 0.5; // $0.50 per day
-      const fine = new Fine({
-        userId: user.userId,
-        transactionId: transaction.transactionId,
-        amount: fineAmount > 0 ? fineAmount : 0.5, // Minimum fine for testing
-        reason: 'Late return',
-        date: new Date(),
-        status: 'unpaid'
-      });
-
-      await fine.save();
-      console.log(`Fine generated: $${fine.amount.toFixed(2)}\n`);
-
+      // Set the fine details
+      borrowRecord.fine.amount = fineAmount;
+      borrowRecord.fine.reason = 'late';
+      borrowRecord.fine.date = new Date();
+      borrowRecord.fine.status = 'unpaid';
+      await borrowRecord.save();
+      
       // Test fine payment
-      await testFinePayment(fine);
+      await testFinePayment(borrowRecord);
     } else {
+      console.log(`Book returned on time. No fine necessary.\n`);
+      
       // For testing purposes, we'll create a fine anyway
-      console.log(`Book returned on time. Creating test fine anyway...`);
-      const fine = new Fine({
-        userId: user.userId,
-        transactionId: transaction.transactionId,
-        amount: 0.5, // Minimum fine for testing
-        reason: 'Test fine',
-        date: new Date(),
-        status: 'unpaid'
-      });
-
-      await fine.save();
-      console.log(`Test fine generated: $${fine.amount.toFixed(2)}\n`);
-
+      console.log(`Creating test fine anyway...`);
+      borrowRecord.fine.amount = 0.5; // Minimum fine for testing
+      borrowRecord.fine.reason = 'other';
+      borrowRecord.fine.date = new Date();
+      borrowRecord.fine.status = 'unpaid';
+      await borrowRecord.save();
+      
       // Test fine payment
-      await testFinePayment(fine);
+      await testFinePayment(borrowRecord);
     }
 
     return true;
@@ -313,18 +330,22 @@ async function testBookReturning(transaction, user, book) {
 }
 
 // Test fine payment
-async function testFinePayment(fine) {
+async function testFinePayment(borrowRecord) {
   console.log('Testing fine payment...');
   try {
-    // Update fine status
-    fine.status = 'paid';
-    fine.paymentDate = new Date();
-    await fine.save();
-
-    console.log(`Fine paid: $${fine.amount.toFixed(2)}`);
-    console.log(`Payment date: ${fine.paymentDate.toDateString()}\n`);
-
-    return true;
+    // Use the model's payFine method
+    const paymentSuccess = borrowRecord.payFine('cash');
+    
+    if (paymentSuccess) {
+      await borrowRecord.save();
+      console.log(`Fine paid: $${borrowRecord.fine.amount.toFixed(2)}`);
+      console.log(`Payment method: ${borrowRecord.fine.paymentMethod}`);
+      console.log(`Payment date: ${borrowRecord.fine.paidDate.toDateString()}\n`);
+      return true;
+    } else {
+      console.log('❌ Fine payment failed - may already be paid or no fine exists\n');
+      return false;
+    }
   } catch (err) {
     console.error('❌ Test failed:', err);
     return false;
@@ -338,7 +359,7 @@ async function testBookSearch() {
     // Create a few more books for testing search
     const books = [
       {
-        isbn: `TEST-${Math.floor(Math.random() * 10000)}`,
+        isbn: `TEST-${Math.floor(Math.random() * 10000)}-${Date.now().toString().slice(-4)}`,
         title: 'Test Book 2',
         author: 'Jane Doe',
         publisher: 'Test Publisher',
@@ -350,7 +371,7 @@ async function testBookSearch() {
         location: 'Section B, Shelf 1'
       },
       {
-        isbn: `TEST-${Math.floor(Math.random() * 10000)}`,
+        isbn: `TEST-${Math.floor(Math.random() * 10000)}-${Date.now().toString().slice(-4)}`,
         title: 'Advanced Testing',
         author: 'John Smith',
         publisher: 'Code Books',
@@ -402,6 +423,105 @@ async function testBookSearch() {
   }
 }
 
+// Test finding overdue books using BorrowRecord static method
+async function testFindOverdueBooks() {
+  console.log('Testing find overdue books functionality...');
+  try {
+    // Create a book and user for this test
+    const overdueUser = new User({
+      userId: generateUniqueId('LIB-U'),
+      name: 'Overdue Test User',
+      email: 'overdue.test@example.com',
+      phone: '9876543210',
+      address: '456 Overdue Street, Test City',
+      membershipType: 'regular',
+      currentBorrowCount: 1,
+      maxBorrowLimit: 5
+    });
+    await overdueUser.save();
+
+    const overdueBook = new Book({
+      isbn: `TEST-OD-${Math.floor(Math.random() * 10000)}`,
+      title: 'Overdue Test Book',
+      author: 'Test Author',
+      publisher: 'Test Publisher',
+      publishYear: 2023,
+      genre: ['Fiction', 'Test'],
+      description: 'This is a test book for testing overdue functionality.',
+      quantity: 1,
+      availableQuantity: 0,
+      location: 'Section A, Shelf 3'
+    });
+    await overdueBook.save();
+
+    // Create an overdue borrow record
+    const pastDueDate = new Date();
+    pastDueDate.setDate(pastDueDate.getDate() - 7); // 7 days in the past
+
+    const overdueBorrowRecord = new BorrowRecord({
+      user: overdueUser._id,
+      book: overdueBook._id,
+      borrowDate: new Date(pastDueDate.getTime() - 14 * 24 * 60 * 60 * 1000), // 21 days ago
+      dueDate: pastDueDate, // 7 days ago
+      status: 'borrowed'
+    });
+    await overdueBorrowRecord.save();
+
+    console.log(`Created overdue record: Book "${overdueBook.title}" borrowed by ${overdueUser.name}`);
+    console.log(`Due date was: ${pastDueDate.toDateString()} (${overdueBorrowRecord.daysRemaining} days remaining)`);
+
+    // Find overdue books using the static method
+    console.log('\nFinding all overdue books:');
+    const overdueBooks = await BorrowRecord.findOverdueBooks();
+    
+    console.log(`Found ${overdueBooks.length} overdue books:`);
+    for (const record of overdueBooks) {
+      console.log(`- "${record.book.title}" borrowed by ${record.user.name}`);
+      console.log(`  Due date: ${record.dueDate.toDateString()}`);
+      console.log(`  Days overdue: ${Math.abs(record.daysRemaining)}`);
+      console.log(`  Estimated fine: $${record.calculateFine().toFixed(2)}`);
+    }
+
+    console.log('\nOverdue books test completed\n');
+    return true;
+  } catch (err) {
+    console.error('❌ Test failed:', err);
+    return false;
+  }
+}
+
+// Test fine report generation using BorrowRecord static method
+async function testFineReportGeneration() {
+  console.log('Testing fine report generation...');
+  try {
+    // Generate a report for all fines in the last 30 days
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+    const endDate = new Date();
+
+    console.log(`Generating fine report from ${startDate.toDateString()} to ${endDate.toDateString()}`);
+    
+    const fineReport = await BorrowRecord.generateFineReport(startDate, endDate);
+    
+    console.log('\nFine Report Summary:');
+    if (fineReport.length === 0) {
+      console.log('No fine data available for the selected period');
+    } else {
+      fineReport.forEach(group => {
+        console.log(`- Status: ${group._id || 'Not specified'}`);
+        console.log(`  Count: ${group.count} fines`);
+        console.log(`  Total amount: $${group.totalAmount.toFixed(2)}`);
+      });
+    }
+
+    console.log('\nFine report generation test completed\n');
+    return true;
+  } catch (err) {
+    console.error('❌ Test failed:', err);
+    return false;
+  }
+}
+
 // Test user membership renewal
 async function testMembershipRenewal(user) {
   console.log('Testing membership renewal...');
@@ -412,19 +532,19 @@ async function testMembershipRenewal(user) {
     }
 
     // Get original end date
-    const originalEndDate = new Date(user.membershipEndDate);
+    const originalEndDate = new Date(user.membershipExpiry);
     console.log(`Original membership end date: ${originalEndDate.toDateString()}`);
 
     // Extend membership by 6 months
-    user.membershipEndDate = new Date(user.membershipEndDate);
-    user.membershipEndDate.setMonth(user.membershipEndDate.getMonth() + 6);
+    user.membershipExpiry = new Date(user.membershipExpiry);
+    user.membershipExpiry.setMonth(user.membershipExpiry.getMonth() + 6);
     await user.save();
 
-    console.log(`Membership renewed. New end date: ${user.membershipEndDate.toDateString()}`);
+    console.log(`Membership renewed. New end date: ${user.membershipExpiry.toDateString()}`);
     
     // Calculate new days remaining
     const today = new Date();
-    const daysRemaining = Math.ceil((user.membershipEndDate - today) / (1000 * 60 * 60 * 24));
+    const daysRemaining = Math.ceil((user.membershipExpiry - today) / (1000 * 60 * 60 * 24));
     console.log(`Updated membership days remaining: ${daysRemaining}\n`);
 
     return true;
@@ -445,7 +565,7 @@ async function generateMongoCompassView() {
     const db = client.db();
     
     // Collections to display
-    const collections = ['users', 'books', 'transactions', 'fines'];
+    const collections = ['users', 'books', 'borrowrecords'];
     
     for (const collection of collections) {
       console.log(`\n=== ${collection.toUpperCase()} COLLECTION ===`);
@@ -492,13 +612,19 @@ async function runTests() {
     
     // Only proceed if previous tests were successful
     if (user && book) {
-      const transaction = await testBookBorrowing(user, book);
+      const borrowRecord = await testBookBorrowing(user, book);
       
-      if (transaction) {
-        await testBookReturning(transaction, user, book);
+      if (borrowRecord) {
+        // Test renewal functionality
+        await testBookRenewal(borrowRecord);
+        
+        // Then test returning
+        await testBookReturning(borrowRecord, user, book);
       }
       
       await testBookSearch();
+      await testFindOverdueBooks();
+      await testFineReportGeneration();
       await testMembershipRenewal(user);
     }
     

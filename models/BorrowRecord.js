@@ -1,8 +1,17 @@
-// models/BorrowRecord.js - Enhanced borrow record schema and model
+// models/BorrowRecord.js - Enhanced borrow record schema with transaction and fine integration
 
 const mongoose = require('mongoose');
 
 const borrowRecordSchema = new mongoose.Schema({
+  // Core fields aligned with Transaction schema
+  transactionId: {
+    type: String,
+    unique: true,
+    required: true,
+    default: function() {
+      return `TXN-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+    }
+  },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -29,6 +38,8 @@ const borrowRecordSchema = new mongoose.Schema({
     enum: ['borrowed', 'returned', 'overdue', 'lost'],
     default: 'borrowed',
   },
+  
+  // Fine integration aligned with Fine schema
   fine: {
     amount: {
       type: Number,
@@ -38,9 +49,13 @@ const borrowRecordSchema = new mongoose.Schema({
       type: String,
       enum: ['late', 'damaged', 'lost', 'other'],
     },
-    paid: {
-      type: Boolean,
-      default: false,
+    status: {
+      type: String,
+      enum: ['paid', 'unpaid', 'waived'],
+      default: 'unpaid'
+    },
+    date: {
+      type: Date,
     },
     paidDate: {
       type: Date,
@@ -50,6 +65,8 @@ const borrowRecordSchema = new mongoose.Schema({
       enum: ['cash', 'card', 'online', 'waived'],
     }
   },
+  
+  // Additional features from original BorrowRecord
   renewalCount: {
     type: Number,
     default: 0,
@@ -72,13 +89,6 @@ const borrowRecordSchema = new mongoose.Schema({
   },
   notes: {
     type: String,
-  },
-  transactionId: {
-    type: String,
-    unique: true,
-    default: function() {
-      return 'TR-' + Math.random().toString(36).substring(2, 8).toUpperCase() + '-' + Date.now().toString().substring(8);
-    }
   }
 }, {
   timestamps: true, // Automatically adds createdAt and updatedAt fields
@@ -114,8 +124,8 @@ borrowRecordSchema.methods.isOverdue = function() {
   return new Date() > this.dueDate;
 };
 
-// Method to calculate fine amount
-borrowRecordSchema.methods.calculateFine = function(fineRatePerDay = 1) {
+// Method to calculate fine amount - Aligned with test code's calculation
+borrowRecordSchema.methods.calculateFine = function(fineRatePerDay = 0.5) { // Changed default to $0.50 per day
   if (this.status === 'returned' && !this.isOverdue()) {
     return 0;
   }
@@ -134,21 +144,15 @@ borrowRecordSchema.methods.calculateFine = function(fineRatePerDay = 1) {
     const timeDiff = today - dueDate;
     const daysOverdue = Math.ceil(timeDiff / (1000 * 3600 * 24));
     
-    // Progressive fine rate
-    if (daysOverdue <= 7) {
-      fineAmount = daysOverdue * fineRatePerDay;
-    } else if (daysOverdue <= 14) {
-      fineAmount = 7 * fineRatePerDay + (daysOverdue - 7) * (fineRatePerDay * 1.5);
-    } else {
-      fineAmount = 7 * fineRatePerDay + 7 * (fineRatePerDay * 1.5) + (daysOverdue - 14) * (fineRatePerDay * 2);
-    }
+    // Simple flat rate calculation like in test code
+    fineAmount = daysOverdue * fineRatePerDay;
   }
   
   return parseFloat(fineAmount.toFixed(2));
 };
 
 // Method to renew a book
-borrowRecordSchema.methods.renewBook = function(extensionDays = 7) {
+borrowRecordSchema.methods.renewBook = function(extensionDays = 14) { // Changed to 14 days like in test code
   if (this.status !== 'borrowed' || this.isOverdue()) {
     return false;
   }
@@ -167,6 +171,19 @@ borrowRecordSchema.methods.renewBook = function(extensionDays = 7) {
   // Update due date and renewal count
   this.dueDate = newDueDate;
   this.renewalCount += 1;
+  
+  return true;
+};
+
+// Process fine payment
+borrowRecordSchema.methods.payFine = function(paymentMethod = 'cash') {
+  if (!this.fine || this.fine.amount <= 0 || this.fine.status === 'paid') {
+    return false;
+  }
+  
+  this.fine.status = 'paid';
+  this.fine.paidDate = new Date();
+  this.fine.paymentMethod = paymentMethod;
   
   return true;
 };
@@ -191,6 +208,37 @@ borrowRecordSchema.index({ user: 1, status: 1 });
 borrowRecordSchema.index({ book: 1, status: 1 });
 borrowRecordSchema.index({ dueDate: 1, status: 1 });
 borrowRecordSchema.index({ transactionId: 1 });
+
+// Static method to find overdue books
+borrowRecordSchema.statics.findOverdueBooks = async function() {
+  const today = new Date();
+  return this.find({
+    dueDate: { $lt: today },
+    status: 'borrowed'
+  }).populate('user').populate('book');
+};
+
+// Static method to generate reports
+borrowRecordSchema.statics.generateFineReport = async function(startDate, endDate) {
+  return this.aggregate([
+    {
+      $match: {
+        'fine.amount': { $gt: 0 },
+        'fine.date': { 
+          $gte: startDate, 
+          $lte: endDate 
+        }
+      }
+    },
+    {
+      $group: {
+        _id: '$fine.status',
+        totalAmount: { $sum: '$fine.amount' },
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+};
 
 // Export the model
 const BorrowRecord = mongoose.model('BorrowRecord', borrowRecordSchema);

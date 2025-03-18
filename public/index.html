@@ -3,124 +3,449 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Library API Tester</title>
+    <title>Library Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .container { max-width: 800px; margin: 0 auto; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input, textarea, select { width: 100%; padding: 8px; box-sizing: border-box; }
-        button { padding: 10px 15px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
-        button:hover { background-color: #45a049; }
-        .response { margin-top: 20px; padding: 10px; background-color: #f8f8f8; border: 1px solid #ddd; }
-        pre { white-space: pre-wrap; word-wrap: break-word; }
+        .card {
+            margin-bottom: 20px;
+        }
+        .json-display {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .tab-content {
+            padding: 20px 0;
+        }
+        .action-buttons {
+            margin-top: 10px;
+        }
+        .nav-tabs {
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Library Management API Tester</h1>
+    <div class="container mt-4">
+        <h1 class="text-center mb-4">Library Management System</h1>
         
-        <h2>Add New Book</h2>
-        <div class="form-group">
-            <label for="title">Title:</label>
-            <input type="text" id="title" placeholder="Enter book title">
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="alert alert-primary" id="connection-status">
+                    Connection status: Disconnected
+                </div>
+            </div>
         </div>
-        <div class="form-group">
-            <label for="author">Author:</label>
-            <input type="text" id="author" placeholder="Enter author name">
-        </div>
-        <div class="form-group">
-            <label for="isbn">ISBN:</label>
-            <input type="text" id="isbn" placeholder="Enter ISBN">
-        </div>
-        <div class="form-group">
-            <label for="publishedYear">Published Year:</label>
-            <input type="number" id="publishedYear" placeholder="Enter published year">
-        </div>
-        <div class="form-group">
-            <label for="genre">Genre:</label>
-            <input type="text" id="genre" placeholder="Enter genre">
-        </div>
-        <div class="form-group">
-            <label for="quantity">Quantity:</label>
-            <input type="number" id="quantity" placeholder="Enter quantity">
-        </div>
-        <div class="form-group">
-            <label for="description">Description:</label>
-            <textarea id="description" rows="3" placeholder="Enter book description"></textarea>
-        </div>
-        <button onclick="resetForm()">Reset</button>
 
-        <button onclick="addBook()">Add Book</button>
-        <button onclick="getAllBooks()">Get All Books</button>
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab" aria-controls="users" aria-selected="true">Users</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="books-tab" data-bs-toggle="tab" data-bs-target="#books" type="button" role="tab" aria-controls="books" aria-selected="false">Books</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="transactions-tab" data-bs-toggle="tab" data-bs-target="#transactions" type="button" role="tab" aria-controls="transactions" aria-selected="false">Transactions</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="fines-tab" data-bs-toggle="tab" data-bs-target="#fines" type="button" role="tab" aria-controls="fines" aria-selected="false">Fines</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports" type="button" role="tab" aria-controls="reports" aria-selected="false">Reports</button>
+            </li>
+        </ul>
         
-        <div class="response">
-            <h3>Response:</h3>
-            <pre id="responseOutput">Response will appear here...</pre>
+        <div class="tab-content" id="myTabContent">
+            <!-- Users Tab -->
+            <div class="tab-pane fade show active" id="users" role="tabpanel" aria-labelledby="users-tab">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Add New User</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="add-user-form">
+                                    <div class="mb-3">
+                                        <label for="name" class="form-label">Name</label>
+                                        <input type="text" class="form-control" id="name" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="email" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="email" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="phone" class="form-label">Phone</label>
+                                        <input type="text" class="form-control" id="phone" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="address" class="form-label">Address</label>
+                                        <textarea class="form-control" id="address" required></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="membershipEndDate" class="form-label">Membership End Date</label>
+                                        <input type="date" class="form-control" id="membershipEndDate" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="maxBorrowLimit" class="form-label">Max Borrow Limit</label>
+                                        <input type="number" class="form-control" id="maxBorrowLimit" value="5" min="1" max="20" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Create User</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>User Operations</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="search-user" class="form-label">Search User</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="search-user" placeholder="Enter email or user ID">
+                                        <button class="btn btn-outline-secondary" type="button" id="search-user-btn">Search</button>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="renew-user" class="form-label">Renew Membership</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="renew-user" placeholder="Enter user ID">
+                                        <select class="form-select" id="renewal-period">
+                                            <option value="3">3 months</option>
+                                            <option value="6" selected>6 months</option>
+                                            <option value="12">1 year</option>
+                                        </select>
+                                        <button class="btn btn-outline-secondary" type="button" id="renew-membership-btn">Renew</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>JSON Output</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="json-display" id="users-json"></div>
+                                <div class="action-buttons">
+                                    <button class="btn btn-sm btn-primary" id="list-users-btn">List All Users</button>
+                                    <button class="btn btn-sm btn-secondary" id="clear-users-output-btn">Clear Output</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Books Tab -->
+            <div class="tab-pane fade" id="books" role="tabpanel" aria-labelledby="books-tab">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Add New Book</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="add-book-form">
+                                    <div class="mb-3">
+                                        <label for="isbn" class="form-label">ISBN</label>
+                                        <input type="text" class="form-control" id="isbn" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="title" class="form-label">Title</label>
+                                        <input type="text" class="form-control" id="title" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="author" class="form-label">Author</label>
+                                        <input type="text" class="form-control" id="author" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="publisher" class="form-label">Publisher</label>
+                                        <input type="text" class="form-control" id="publisher" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="publishYear" class="form-label">Publish Year</label>
+                                        <input type="number" class="form-control" id="publishYear" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="genre" class="form-label">Genre (comma separated)</label>
+                                        <input type="text" class="form-control" id="genre" placeholder="Fiction, Mystery, etc." required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="description" class="form-label">Description</label>
+                                        <textarea class="form-control" id="description" required></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="quantity" class="form-label">Quantity</label>
+                                        <input type="number" class="form-control" id="quantity" min="1" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="location" class="form-label">Location</label>
+                                        <input type="text" class="form-control" id="location" placeholder="Section A, Shelf 2" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Add Book</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Book Search</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="search-field" class="form-label">Search By</label>
+                                    <select class="form-select" id="search-field">
+                                        <option value="title">Title</option>
+                                        <option value="author">Author</option>
+                                        <option value="isbn">ISBN</option>
+                                        <option value="genre">Genre</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="search-value" class="form-label">Search Value</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="search-value">
+                                        <button class="btn btn-outline-secondary" type="button" id="search-books-btn">Search</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>JSON Output</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="json-display" id="books-json"></div>
+                                <div class="action-buttons">
+                                    <button class="btn btn-sm btn-primary" id="list-books-btn">List All Books</button>
+                                    <button class="btn btn-sm btn-secondary" id="clear-books-output-btn">Clear Output</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Transactions Tab -->
+            <div class="tab-pane fade" id="transactions" role="tabpanel" aria-labelledby="transactions-tab">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>New Transaction</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="new-transaction-form">
+                                    <div class="mb-3">
+                                        <label for="userId" class="form-label">User ID</label>
+                                        <input type="text" class="form-control" id="userId" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="bookIsbn" class="form-label">Book ISBN</label>
+                                        <input type="text" class="form-control" id="bookIsbn" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="dueDate" class="form-label">Due Date</label>
+                                        <input type="date" class="form-control" id="dueDate" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Borrow Book</button>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Return Book</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="return-book-form">
+                                    <div class="mb-3">
+                                        <label for="transactionId" class="form-label">Transaction ID</label>
+                                        <input type="text" class="form-control" id="transactionId" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Return Book</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Transaction Search</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="transaction-search-field" class="form-label">Search By</label>
+                                    <select class="form-select" id="transaction-search-field">
+                                        <option value="transactionId">Transaction ID</option>
+                                        <option value="userId">User ID</option>
+                                        <option value="bookIsbn">Book ISBN</option>
+                                        <option value="status">Status</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="transaction-search-value" class="form-label">Search Value</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="transaction-search-value">
+                                        <button class="btn btn-outline-secondary" type="button" id="search-transactions-btn">Search</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>JSON Output</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="json-display" id="transactions-json"></div>
+                                <div class="action-buttons">
+                                    <button class="btn btn-sm btn-primary" id="list-transactions-btn">List All Transactions</button>
+                                    <button class="btn btn-sm btn-secondary" id="clear-transactions-output-btn">Clear Output</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Fines Tab -->
+            <div class="tab-pane fade" id="fines" role="tabpanel" aria-labelledby="fines-tab">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Create Fine</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="create-fine-form">
+                                    <div class="mb-3">
+                                        <label for="fine-userId" class="form-label">User ID</label>
+                                        <input type="text" class="form-control" id="fine-userId" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="fine-transactionId" class="form-label">Transaction ID</label>
+                                        <input type="text" class="form-control" id="fine-transactionId" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="fine-amount" class="form-label">Amount ($)</label>
+                                        <input type="number" step="0.01" class="form-control" id="fine-amount" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="fine-reason" class="form-label">Reason</label>
+                                        <input type="text" class="form-control" id="fine-reason" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Create Fine</button>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Pay Fine</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="pay-fine-form">
+                                    <div class="mb-3">
+                                        <label for="fineId" class="form-label">Fine ID</label>
+                                        <input type="text" class="form-control" id="fineId" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Mark as Paid</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Fine Search</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="fine-search-field" class="form-label">Search By</label>
+                                    <select class="form-select" id="fine-search-field">
+                                        <option value="_id">Fine ID</option>
+                                        <option value="userId">User ID</option>
+                                        <option value="transactionId">Transaction ID</option>
+                                        <option value="status">Status</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="fine-search-value" class="form-label">Search Value</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="fine-search-value">
+                                        <button class="btn btn-outline-secondary" type="button" id="search-fines-btn">Search</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>JSON Output</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="json-display" id="fines-json"></div>
+                                <div class="action-buttons">
+                                    <button class="btn btn-sm btn-primary" id="list-fines-btn">List All Fines</button>
+                                    <button class="btn btn-sm btn-secondary" id="clear-fines-output-btn">Clear Output</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Reports Tab -->
+            <div class="tab-pane fade" id="reports" role="tabpanel" aria-labelledby="reports-tab">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Generate Reports</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="report-type" class="form-label">Report Type</label>
+                                    <select class="form-select" id="report-type">
+                                        <option value="overdue">Overdue Books</option>
+                                        <option value="popular">Popular Books</option>
+                                        <option value="unpaid">Unpaid Fines</option>
+                                        <option value="expiring">Expiring Memberships</option>
+                                        <option value="inventory">Inventory Status</option>
+                                    </select>
+                                </div>
+                                <button type="button" class="btn btn-primary" id="generate-report-btn">Generate Report</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Report Output</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="json-display" id="reports-json"></div>
+                                <div class="action-buttons">
+                                    <button class="btn btn-sm btn-secondary" id="clear-reports-output-btn">Clear Output</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <script>
-async function addBook() {
-    const title = document.getElementById('title').value.trim();
-    const author = document.getElementById('author').value.trim();
-    const isbn = document.getElementById('isbn').value.trim();
-    const publishedYear = document.getElementById('publishedYear').value.trim();
-    const genre = document.getElementById('genre').value.trim();
-    const quantity = document.getElementById('quantity').value.trim();
-    const description = document.getElementById('description').value.trim();
-
-    if (!title || !author || !isbn || !publishedYear || !genre || !quantity || !description) {
-        document.getElementById('responseOutput').textContent = "Please fill in all fields.";
-        return;
-    }
-
-    const book = {
-        title,
-        author,
-        isbn,
-        publishedYear: parseInt(publishedYear),
-        genre,
-        quantity: parseInt(quantity),
-        description
-    };
-
-    try {
-        const response = await fetch('http://localhost:3000/api/books', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(book)
-        });
-
-        const data = await response.json();
-        document.getElementById('responseOutput').textContent = JSON.stringify(data, null, 2);
-    } catch (error) {
-        document.getElementById('responseOutput').textContent = `Error: ${error.message}`;
-    }
-}
-
-        
-        async function getAllBooks() {
-            try {
-                const response = await fetch('http://localhost:3000/api/books');
-                const data = await response.json();
-                document.getElementById('responseOutput').textContent = JSON.stringify(data, null, 2);
-            } catch (error) {
-                document.getElementById('responseOutput').textContent = `Error: ${error.message}`;
-            }
-        }
-        function resetForm() {
-    document.getElementById('title').value = "";
-    document.getElementById('author').value = "";
-    document.getElementById('isbn').value = "";
-    document.getElementById('publishedYear').value = "";
-    document.getElementById('genre').value = "";
-    document.getElementById('quantity').value = "";
-    document.getElementById('description').value = "";
-}
-
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>

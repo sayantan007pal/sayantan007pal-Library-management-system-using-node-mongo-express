@@ -39,6 +39,7 @@ const userSchema = new mongoose.Schema({
   },
   membershipType: {
     type: String,
+    required: true,
     enum: ['regular', 'premium', 'student', 'staff'],
     default: 'regular',
   },
