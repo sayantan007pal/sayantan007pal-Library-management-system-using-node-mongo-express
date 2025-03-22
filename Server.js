@@ -59,7 +59,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Start the server
 app.listen(PORT, async () => {
     console.log(`Server running at http://localhost:${PORT}`);
-    await open(`http://localhost:${PORT}/index.html`); // Opens the browser automatically
+    // await open(`http://localhost:${PORT}/index.html`); // Opens the browser automatically
 });
 
 
