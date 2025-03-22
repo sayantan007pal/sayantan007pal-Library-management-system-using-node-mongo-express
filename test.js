@@ -6,6 +6,7 @@ pm.variables.set("userId", userId);
 pm.variables.set("bookId", bookId);
 pm.variables.set("dueDate", new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]); // Due date 14 days from now
 
+
 // Tests (add this to Postman's "Tests" tab)
 // Main test for successful borrowing
 pm.test("Successful borrowing returns 201 status code", function() {
