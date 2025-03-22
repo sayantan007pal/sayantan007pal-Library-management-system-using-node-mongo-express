@@ -28,7 +28,7 @@ const borrowRecordSchema = new mongoose.Schema({
   },
   dueDate: {
     type: Date,
-    required: [true, 'Due date is required'],
+    // required: [true, 'Due date is required'],
   },
   returnDate: {
     type: Date,

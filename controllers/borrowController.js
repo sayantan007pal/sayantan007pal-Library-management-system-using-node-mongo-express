@@ -106,6 +106,7 @@ exports.getBorrowRecordById = async (req, res, next) => {
 exports.createBorrowRecord = async (req, res, next) => {
   try {
     const { userId, bookId, dueDate, bookCondition, notes } = req.body;
+    console.log(userId, bookId, dueDate, bookCondition, notes); 
     
     // Check if user exists
     const user = await User.findById(userId);
@@ -131,11 +132,13 @@ exports.createBorrowRecord = async (req, res, next) => {
     }
     
     // Check if book is available
-    if (book.availableQuantity <= 0) {
+    if (book.quantity <= 0) {
       return res.status(400).json(
         errorResponse(400, 'Book is not available for borrowing')
       );
     }
+
+    // console.log(book);
     
     // Create borrow record
     const borrowRecord = new BorrowRecord({
@@ -157,21 +160,21 @@ exports.createBorrowRecord = async (req, res, next) => {
     book.availableQuantity -= 1;
     await book.save();
     
-    // Update user's borrowed books and borrowing history
+    // // Update user's borrowed books and borrowing history
     user.borrowedBooks.push(savedRecord._id);
     user.borrowHistory.totalBooksBorrowed += 1;
     user.borrowHistory.lastBorrowDate = new Date();
     await user.save();
     
-    // Populate user and book details
+    // // Populate user and book details
     const populatedRecord = await BorrowRecord.findById(savedRecord._id)
-      .populate('user', 'userId name email')
-      .populate('book', 'title author isbn');
+      // .populate('user', 'userId name email')
+      // .populate('book', 'title author isbn');
     
     return res.status(201).json(
       successResponse(201, 'Book borrowed successfully', populatedRecord)
     );
-  } catch (error) {
+  } catch (error) {    
     next(error);
   }
 };
@@ -452,7 +455,7 @@ exports.getOverdueBooks = async (req, res, next) => {
 // Get user's borrow history
 exports.getUserBorrowHistory = async (req, res, next) => {
   try {
-    const userId = req.params.userId;
+    const {userId} = req.params;
     
     // Find the user
     const user = await User.findById(userId);
