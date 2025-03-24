@@ -125,7 +125,7 @@ userSchema.virtual('membershipDaysRemaining').get(function() {
 
 // Virtual for current borrow count
 userSchema.virtual('currentBorrowCount').get(function() {
-  return this.borrowedBooks.length;
+  return this.loginHistory && this.loginHistory.length > 0;
 });
 
 // Create indexes for frequently queried fields
