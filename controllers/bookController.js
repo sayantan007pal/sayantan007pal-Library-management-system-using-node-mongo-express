@@ -2,9 +2,159 @@
 
 const Book = require('../models/Book');
 const { successResponse, errorResponse } = require('../utils/apiResponse');
+const Joi = require('joi');
+
+// Validation schemas
+const bookValidationSchema = Joi.object({
+  title: Joi.string().trim().required().messages({
+    'string.empty': 'Book title is required',
+    'any.required': 'Book title is required'
+  }),
+  author: Joi.string().trim().required().messages({
+    'string.empty': 'Author name is required',
+    'any.required': 'Author name is required'
+  }),
+  isbn: Joi.string().trim().required().messages({
+    'string.empty': 'ISBN is required',
+    'any.required': 'ISBN is required'
+  }),
+  publishedYear: Joi.number().integer(),
+  genre: Joi.array().items(Joi.string().required()).required().messages({
+    'array.base': 'Genre must be an array',
+    'array.includesRequiredUnknowns': 'Genre items cannot be empty',
+    'any.required': 'Genre is required'
+  }),
+  quantity: Joi.number().integer().min(0).default(1).messages({
+    'number.min': 'Quantity cannot be negative'
+  }),
+  availableQuantity: Joi.number().integer().min(0).messages({
+    'number.min': 'Available quantity cannot be negative'
+  }),
+  description: Joi.string().trim().allow('', null),
+  location: Joi.object({
+    shelf: Joi.string().trim().allow('', null),
+    section: Joi.string().trim().allow('', null)
+  }).allow(null),
+  coverImage: Joi.string().uri().allow('', null)
+});
+
+// Validation middleware
+const validateBook = (req, res, next) => {
+  const { error } = bookValidationSchema.validate(req.body, { abortEarly: false });
+  
+  if (error) {
+    const errorMessages = error.details.map(detail => detail.message);
+    return res.status(400).json(
+      errorResponse(400, 'Validation error', errorMessages)
+    );
+  }
+  
+  next();
+};
+
+// Validation for book update (partial updates allowed)
+const updateBookValidationSchema = Joi.object({
+  title: Joi.string().trim().messages({
+    'string.empty': 'Book title cannot be empty'
+  }),
+  author: Joi.string().trim().messages({
+    'string.empty': 'Author name cannot be empty'
+  }),
+  isbn: Joi.string().trim().messages({
+    'string.empty': 'ISBN cannot be empty'
+  }),
+  publishedYear: Joi.number().integer(),
+  genre: Joi.array().items(Joi.string()).messages({
+    'array.base': 'Genre must be an array',
+    'array.includesRequiredUnknowns': 'Genre items cannot be empty'
+  }),
+  quantity: Joi.number().integer().min(0).messages({
+    'number.min': 'Quantity cannot be negative'
+  }),
+  availableQuantity: Joi.number().integer().min(0).messages({
+    'number.min': 'Available quantity cannot be negative'
+  }),
+  description: Joi.string().trim().allow('', null),
+  location: Joi.object({
+    shelf: Joi.string().trim().allow('', null),
+    section: Joi.string().trim().allow('', null)
+  }).allow(null),
+  coverImage: Joi.string().uri().allow('', null)
+}).min(1).messages({
+  'object.min': 'At least one field must be provided for update'
+});
+
+// Validation middleware for updates
+const validateBookUpdate = (req, res, next) => {
+  const { error } = updateBookValidationSchema.validate(req.body, { abortEarly: false });
+  
+  if (error) {
+    const errorMessages = error.details.map(detail => detail.message);
+    return res.status(400).json(
+      errorResponse(400, 'Validation error', errorMessages)
+    );
+  }
+  
+  next();
+};
+
+// Validation schema for query parameters
+const queryValidationSchema = Joi.object({
+  title: Joi.string().trim(),
+  author: Joi.string().trim(),
+  genre: Joi.string().trim(),
+  isbn: Joi.string().trim(),
+  availableOnly: Joi.string().valid('true', 'false'),
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(100).default(10),
+  sortBy: Joi.string().valid('title', 'author', 'publishedYear', 'genre', 'quantity', 'availableQuantity').default('title'),
+  sortOrder: Joi.string().valid('asc', 'desc').default('asc')
+});
+
+// Validation middleware for query parameters
+const validateQuery = (req, res, next) => {
+  const { error, value } = queryValidationSchema.validate(req.query, { abortEarly: false });
+  
+  if (error) {
+    const errorMessages = error.details.map(detail => detail.message);
+    return res.status(400).json(
+      errorResponse(400, 'Invalid query parameters', errorMessages)
+    );
+  }
+  
+  // Replace the query with validated values
+  req.query = value;
+  next();
+};
+
+// Search query validation
+const searchValidationSchema = Joi.object({
+  q: Joi.string().required().messages({
+    'string.empty': 'Search query cannot be empty',
+    'any.required': 'Search query is required'
+  }),
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(100).default(10)
+});
+
+// Validation middleware for search
+const validateSearch = (req, res, next) => {
+  const { error, value } = searchValidationSchema.validate(req.query, { abortEarly: false });
+  
+  if (error) {
+    const errorMessages = error.details.map(detail => detail.message);
+    return res.status(400).json(
+      errorResponse(400, 'Invalid search parameters', errorMessages)
+    );
+  }
+  
+  // Replace the query with validated values
+  req.query = value;
+  next();
+};
 
 // Get all books with optional filtering
-exports.getAllBooks = async (req, res, next) => {
+exports.getAllBooks = [validateQuery, async (req, res, next) => {
   try {
     const { 
       title, author, genre, 
@@ -54,7 +204,7 @@ exports.getAllBooks = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-};
+}];
 
 // Get a single book by ID
 exports.getBookById = async (req, res, next) => {
@@ -76,7 +226,7 @@ exports.getBookById = async (req, res, next) => {
 };
 
 // Create a new book
-exports.createBook = async (req, res, next) => {
+exports.createBook = [validateBook, async (req, res, next) => {
   try {
     // Check if book with same ISBN already exists
     const existingBook = await Book.findOne({ isbn: req.body.isbn });
@@ -97,10 +247,10 @@ exports.createBook = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-};
+}];
 
 // Update a book
-exports.updateBook = async (req, res, next) => {
+exports.updateBook = [validateBookUpdate, async (req, res, next) => {
   try {
     // Find the book to update
     const bookToUpdate = await Book.findById(req.params.id);
@@ -135,7 +285,7 @@ exports.updateBook = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-};
+}];
 
 // Delete a book
 exports.deleteBook = async (req, res, next) => {
@@ -166,16 +316,10 @@ exports.deleteBook = async (req, res, next) => {
 };
 
 // Search books by text
-exports.searchBooks = async (req, res, next) => {
+exports.searchBooks = [validateSearch, async (req, res, next) => {
   try {
     const { q } = req.query;
     const { page = 1, limit = 10 } = req.query;
-    
-    if (!q) {
-      return res.status(400).json(
-        errorResponse(400, 'Search query is required')
-      );
-    }
     
     // Use MongoDB text search
     const books = await Book.find(
@@ -201,4 +345,4 @@ exports.searchBooks = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-};
+}];
