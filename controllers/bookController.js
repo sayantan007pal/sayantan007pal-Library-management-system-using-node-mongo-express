@@ -1,4 +1,4 @@
-// controllers/bookController.js - Controller for book-related operations
+// Controller for book-related operations
 
 const Book = require('../models/Book');
 const { successResponse, errorResponse } = require('../utils/apiResponse');
