@@ -1,10 +1,106 @@
-// controllers/userController.js - Controller for user-related operations
+// controllers/userController.js - Controller for user-related operations with Joi validation
 
 const User = require('../models/User');
 const { successResponse, errorResponse } = require('../utils/apiResponse');
+const Joi = require('joi');
+
+// Validation schemas
+const userValidationSchema = Joi.object({
+  name: Joi.string().required().trim().messages({
+    'string.empty': 'Name is required',
+    'any.required': 'Name is required'
+  }),
+  email: Joi.string().email().required().trim().lowercase().messages({
+    'string.email': 'Please provide a valid email address',
+    'string.empty': 'Email is required',
+    'any.required': 'Email is required'
+  }),
+  phone: Joi.string().trim().allow(''),
+  address: Joi.object({
+    street: Joi.string().allow(''),
+    city: Joi.string().allow(''),
+    state: Joi.string().allow(''),
+    zipCode: Joi.string().allow(''),
+    country: Joi.string().allow('')
+  }),
+  membershipType: Joi.string().valid('regular', 'premium', 'student', 'staff').default('regular'),
+  membershipDate: Joi.date().default(Date.now),
+  membershipExpiry: Joi.date(),
+  isActive: Joi.boolean().default(true),
+  notes: Joi.string().allow(''),
+  preferences: Joi.object({
+    receiveNotifications: Joi.boolean().default(true),
+    notificationChannel: Joi.string().valid('email', 'sms', 'both', 'none').default('email'),
+    favoriteGenres: Joi.array().items(Joi.string())
+  }),
+  userId: Joi.string() // Only for update operations
+}).unknown(false);
+
+const queryValidationSchema = Joi.object({
+  name: Joi.string(),
+  email: Joi.string(),
+  membershipType: Joi.string().valid('regular', 'premium', 'student', 'staff'),
+  isActive: Joi.string().valid('true', 'false'),
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).default(10),
+  sortBy: Joi.string().default('name'),
+  sortOrder: Joi.string().valid('asc', 'desc').default('asc')
+});
+
+const searchValidationSchema = Joi.object({
+  q: Joi.string().required().messages({
+    'string.empty': 'Search query is required',
+    'any.required': 'Search query is required'
+  }),
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).default(10)
+});
+
+// Validation middleware
+const validateUserData = (req, res, next) => {
+  const { error, value } = userValidationSchema.validate(req.body, { abortEarly: false });
+  
+  if (error) {
+    const validationErrors = error.details.map(detail => detail.message);
+    return res.status(400).json(
+      errorResponse(400, 'Validation error', validationErrors)
+    );
+  }
+  
+  req.body = value; // Use the validated and sanitized data
+  next();
+};
+
+const validateQuery = (req, res, next) => {
+  const { error, value } = queryValidationSchema.validate(req.query, { abortEarly: false });
+  
+  if (error) {
+    const validationErrors = error.details.map(detail => detail.message);
+    return res.status(400).json(
+      errorResponse(400, 'Query validation error', validationErrors)
+    );
+  }
+  
+  req.query = value; // Use the validated and sanitized query params
+  next();
+};
+
+const validateSearchQuery = (req, res, next) => {
+  const { error, value } = searchValidationSchema.validate(req.query, { abortEarly: false });
+  
+  if (error) {
+    const validationErrors = error.details.map(detail => detail.message);
+    return res.status(400).json(
+      errorResponse(400, 'Search validation error', validationErrors)
+    );
+  }
+  
+  req.query = value; // Use the validated and sanitized search params
+  next();
+};
 
 // Get all users with optional filtering
-exports.getAllUsers = async (req, res, next) => {
+exports.getAllUsers = [validateQuery, async (req, res, next) => {
   try {
     const { 
       name, email, membershipType, 
@@ -53,7 +149,7 @@ exports.getAllUsers = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-};
+}];
 
 // Get a single user by ID
 exports.getUserById = async (req, res, next) => {
@@ -79,7 +175,7 @@ exports.getUserById = async (req, res, next) => {
 };
 
 // Create a new user
-exports.createUser = async (req, res, next) => {
+exports.createUser = [validateUserData, async (req, res, next) => {
   try {
     // Check if user with same email already exists
     const existingUser = await User.findOne({ email: req.body.email });
@@ -100,10 +196,10 @@ exports.createUser = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-};
+}];
 
 // Update a user
-exports.updateUser = async (req, res, next) => {
+exports.updateUser = [validateUserData, async (req, res, next) => {
   try {
     // Find the user to update
     const userToUpdate = await User.findById(req.params.id);
@@ -138,7 +234,7 @@ exports.updateUser = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-};
+}];
 
 // Delete a user
 exports.deleteUser = async (req, res, next) => {
@@ -173,16 +269,10 @@ exports.deleteUser = async (req, res, next) => {
 };
 
 // Search users by text
-exports.searchUsers = async (req, res, next) => {
+exports.searchUsers = [validateSearchQuery, async (req, res, next) => {
   try {
     const { q } = req.query;
     const { page = 1, limit = 10 } = req.query;
-    
-    if (!q) {
-      return res.status(400).json(
-        errorResponse(400, 'Search query is required')
-      );
-    }
     
     // Use MongoDB text search
     const users = await User.find(
@@ -208,4 +298,11 @@ exports.searchUsers = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+}];
+
+module.exports = {
+  ...exports,
+  validateUserData,
+  validateQuery,
+  validateSearchQuery
 };

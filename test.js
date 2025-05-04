@@ -1,12 +1,132 @@
+// // Pre-request Script (to set up variables)
+// // You can add this script to your Postman request's "Pre-request Script" tab
+// const userId = pm.variables.get("validUserId") || "65f1a2b3c4d5e6f7g8h9i0j1";
+// const bookId = pm.variables.get("availableBookId") || "65f7a2b3c4d5e6f7g8h9i0j2";
+// pm.variables.set("userId", userId);
+// pm.variables.set("bookId", bookId);
+// pm.variables.set("dueDate", new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]); // Due date 14 days from now
+
+
+// // Tests (add this to Postman's "Tests" tab)
+// // Main test for successful borrowing
+// pm.test("Successful borrowing returns 201 status code", function() {
+//     pm.response.to.have.status(201);
+// });
+
+// pm.test("Response has the correct structure", function() {
+//     const jsonData = pm.response.json();
+    
+//     pm.expect(jsonData).to.have.property("success");
+//     pm.expect(jsonData.success).to.be.true;
+    
+//     pm.expect(jsonData).to.have.property("message");
+//     pm.expect(jsonData.message).to.equal("Book borrowed successfully");
+    
+//     pm.expect(jsonData).to.have.property("data");
+//     pm.expect(jsonData.data).to.be.an("object");
+// });
+
+// pm.test("Borrow record has the expected properties", function() {
+//     const jsonData = pm.response.json();
+    
+//     pm.expect(jsonData.data).to.have.property("transactionId");
+//     pm.expect(jsonData.data.transactionId).to.be.a("string");
+//     pm.expect(jsonData.data.transactionId).to.include("TXN-");
+    
+//     pm.expect(jsonData.data).to.have.property("user");
+//     pm.expect(jsonData.data.user).to.equal(pm.variables.get("userId"));
+    
+//     pm.expect(jsonData.data).to.have.property("book");
+//     pm.expect(jsonData.data.book).to.equal(pm.variables.get("bookId"));
+    
+//     pm.expect(jsonData.data).to.have.property("dueDate");
+    
+//     pm.expect(jsonData.data).to.have.property("bookCondition");
+//     pm.expect(jsonData.data.bookCondition).to.have.property("checkedOut");
+    
+//     // Store the transaction ID for future tests if needed
+//     if (jsonData.data.transactionId) {
+//         pm.environment.set("lastTransactionId", jsonData.data.transactionId);
+//     }
+// });
+
+// // Additional test collection for error cases
+// // You would create separate Postman requests for each of these cases
+
+// // Test Case: Invalid User ID
+// // (For a separate request with an invalid userId)
+// if (pm.variables.get("testCase") === "invalidUser") {
+//     pm.test("Invalid user ID returns 404", function() {
+//         pm.response.to.have.status(404);
+//         const jsonData = pm.response.json();
+//         pm.expect(jsonData.success).to.be.false;
+//         pm.expect(jsonData.message).to.equal("User not found");
+//     });
+// }
+
+// // Test Case: Invalid Book ID
+// // (For a separate request with an invalid bookId)
+// if (pm.variables.get("testCase") === "invalidBook") {
+//     pm.test("Invalid book ID returns 404", function() {
+//         pm.response.to.have.status(404);
+//         const jsonData = pm.response.json();
+//         pm.expect(jsonData.success).to.be.false;
+//         pm.expect(jsonData.message).to.equal("Book not found");
+//     });
+// }
+
+// // Test Case: Book not available
+// // (For a separate request with a book that's already borrowed)
+// if (pm.variables.get("testCase") === "unavailableBook") {
+//     pm.test("Unavailable book returns 400", function() {
+//         pm.response.to.have.status(400);
+//         const jsonData = pm.response.json();
+//         pm.expect(jsonData.success).to.be.false;
+//         pm.expect(jsonData.message).to.equal("Book is not available for borrowing");
+//     });
+// }
+
+// // Test Case: User has unpaid fines
+// // (For a separate request with a user that has unpaid fines)
+// if (pm.variables.get("testCase") === "unpaidFines") {
+//     pm.test("User with unpaid fines returns 400", function() {
+//         pm.response.to.have.status(400);
+//         const jsonData = pm.response.json();
+//         pm.expect(jsonData.success).to.be.false;
+//         pm.expect(jsonData.message).to.include("User has unpaid fines");
+//         pm.expect(jsonData).to.have.property("unpaidFines");
+//         pm.expect(jsonData.unpaidFines).to.be.an("array");
+//     });
+// }
+
+// // Test Case: Server error
+// // (For a separate request that might trigger a server error)
+// if (pm.variables.get("testCase") === "serverError") {
+//     pm.test("Server error returns 500", function() {
+//         pm.response.to.have.status(500);
+//         const jsonData = pm.response.json();
+//         pm.expect(jsonData.success).to.be.false;
+//         pm.expect(jsonData).to.have.property("error");
+//     });
+// }
+
+
+
+
+
+
+
+
+
 const mongoose = require('mongoose');
 const { MongoClient } = require('mongodb');
 
 // Import the BorrowRecord model
-const BorrowRecord = require('./models/BorrowRecord');
+const BorrowRecord = require('./models/borrowModel');
 
 // Configuration
 const config = {
-  mongoURI: 'mongodb://localhost:27017/library_management',
+  mongoURI: 'mongodb://localhost:27017/MERN_STACK_LIBRARY_MANAGEMENT_SYSTEM',
   testMode: true
 };
 

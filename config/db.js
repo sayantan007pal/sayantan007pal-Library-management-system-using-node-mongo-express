@@ -6,7 +6,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 // Get the MongoDB connection string from environment variables
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/library_management';
+const MONGO_URI = process.env.MONGO_URI;
 
 // Connect to MongoDB
 mongoose.connect(MONGO_URI, {
