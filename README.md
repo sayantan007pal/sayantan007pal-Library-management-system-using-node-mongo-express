@@ -1,35 +1,3 @@
-# sayantan007pal-Library-management-system-using-node-mongo-express
-
-
-
-Ran tool
-
-Search files...
-
-Ran tool
-
-Ran tool
-
-Read file: routes/bookRoutes.js
-
-Read file: routes/userRoutes.js
-
-Read file: routes/borrowRoutes.js
-
-Read file: README.md
-
-Read file: models/Book.js
-
-Read file: models/User.js
-
-Read file: models/borrowModel.js
-
-Ran tool
-
-Read file: models/BorrowRecord.js
-Here is a detailed `README.md` for your Library Management System project, covering setup, usage, API endpoints, and more:
-
----
 
 # Library Management System
 
